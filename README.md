@@ -7,5 +7,5 @@ got
 
 青龙拉取脚本
 ```
-ql repo https://github.com/Henvy-Mango/check-in-script "task_" "" "utils"
+ql repo https://github.com/Henvy-Mango/check-in-script.git "task_" "" "utils"
 ```

@@ -46,19 +46,25 @@ const headers = {
  * @returns {Promise<void>}
  */
 async function signIn() {
+    let data;
     try {
-        const data = await common.sendRequest(`${baseUrl}/api/v3/user/checkin`, 'post', headers, '{timezone:8}');
-        const checkinDate = data.checkin_date ?? 0;
-        const continuous = data.continuous ?? 0;
-        const count = data.count ?? 0;
-        console.log(`签到日期：${checkinDate}`);
-        console.log(`连续签到：${continuous} 天`);
-        console.log(`签到总数：${count} 天`);
-        message += `签到日期：${checkinDate}\n`;
-        message += `🏃‍连续签到：${continuous} 天\n`;
-        message += `👴签到总数：${count} 天\n\n`;
+        data = await common.sendRequest(`${baseUrl}/api/v3/user/checkin`, 'post', headers, '{timezone:8}');
     } catch (e) {
-        console.error(`签到时发生异常：${e}`);
-        message += `签到失败：${e.message || e}\n\n`;
+        // 今日已签到时接口返回 409，但响应体仍包含完整签到数据
+        if (!e.response?.data?.checkin_date) {
+            console.error(`签到时发生异常：${e}`);
+            message += `签到失败：${e.message || e}\n\n`;
+            return;
+        }
+        data = e.response.data;
     }
+    const checkinDate = data.checkin_date ?? 0;
+    const continuous = data.continuous ?? 0;
+    const count = data.count ?? 0;
+    console.log(`签到日期：${checkinDate}`);
+    console.log(`连续签到：${continuous} 天`);
+    console.log(`签到总数：${count} 天`);
+    message += `签到日期：${checkinDate}\n`;
+    message += `🏃‍连续签到：${continuous} 天\n`;
+    message += `👴签到总数：${count} 天\n\n`;
 }
