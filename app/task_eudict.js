@@ -48,7 +48,9 @@ const headers = {
 async function signIn() {
     let data;
     try {
-        data = await common.sendRequest(`${baseUrl}/api/v3/user/checkin`, 'post', headers, '{timezone:8}');
+        data = await common.sendRequest(`${baseUrl}/api/v3/user/checkin`, 'post', headers, {
+            timezone: 8,
+        });
     } catch (e) {
         // 今日已签到时接口返回 409，但响应体仍包含完整签到数据
         if (!e.response?.data?.checkin_date) {
