@@ -204,4 +204,4 @@ function getRandomUserAgent(type = 'wx_mini') {
     return arrays[index];
 }
 
-module.exports = {sendRequest, getRandomWait, md5, getRandomUserAgent};
+module.exports = {request: axios, sendRequest, getRandomWait, md5, getRandomUserAgent};
