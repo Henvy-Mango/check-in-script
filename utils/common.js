@@ -2,6 +2,48 @@ const {default: axios} = require("axios");
 const crypto = require('crypto');
 
 // ****************************************Send Request****************************************
+const CONNECTION_ERROR_CODES = new Set([
+    'ECONNRESET', 'ECONNREFUSED', 'ETIMEDOUT', 'ESOCKETTIMEDOUT',
+    'EPIPE', 'EAI_AGAIN', 'ENETUNREACH', 'EHOSTUNREACH',
+]);
+
+/**
+ * 只重试连接故障；HTTP 响应、取消请求和证书错误交给调用方处理。
+ * AggregateError 必须所有内部错误都是连接故障才重试。
+ */
+function isConnectionError(error, seen = new Set()) {
+    if (!error || typeof error !== 'object' || seen.has(error)) return false;
+    if (error.response || error.code === 'ERR_CANCELED') return false;
+    const nextSeen = new Set(seen).add(error);
+    if (Array.isArray(error.errors)) {
+        return error.errors.length > 0
+            && error.errors.every((item) => isConnectionError(item, nextSeen));
+    }
+    if (CONNECTION_ERROR_CODES.has(error.code)) return true;
+    if (error.code === 'ECONNABORTED' && /timeout/i.test(error.message || '')) return true;
+    if (!error.code && /^(socket hang up|Client network socket disconnected before secure TLS connection was established)$/i.test(error.message || '')) {
+        return true;
+    }
+    return isConnectionError(error.cause, nextSeen);
+}
+
+/**
+ * 连接故障时指数退避重试三次，分别等待 2 秒、4 秒、8 秒；耗尽后抛出原始错误。
+ * 保留调用方的 timeout、validateStatus 和响应处理方式。
+ */
+async function request(options) {
+    for (let attempt = 0; ; attempt++) {
+        try {
+            return await axios(options);
+        } catch (error) {
+            if (attempt >= 3 || !isConnectionError(error)) throw error;
+            const delay = 2000 * (2 ** attempt);
+            console.warn(`连接失败（${error.code || error.name || 'Error'}），${delay / 1000} 秒后重试（${attempt + 1}/3）`);
+            await new Promise((resolve) => setTimeout(resolve, delay));
+        }
+    }
+}
+
 /**
  * Send request
  *
@@ -16,7 +58,7 @@ async function sendRequest(url, method, headers = {}, data = {}) {
     const options = {
         method: method.toUpperCase(), url, data, headers: headers,
     };
-    const response = await axios(options);
+    const response = await request(options);
     return response.data;
 }
 
@@ -204,4 +246,4 @@ function getRandomUserAgent(type = 'wx_mini') {
     return arrays[index];
 }
 
-module.exports = {request: axios, sendRequest, getRandomWait, md5, getRandomUserAgent};
+module.exports = {request, sendRequest, getRandomWait, md5, getRandomUserAgent};
